@@ -1,0 +1,2 @@
+types-clang==0.14.2
+types-pyyaml==6.0.12.1

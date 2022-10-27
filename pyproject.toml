@@ -1,0 +1,16 @@
+[tool.black]
+line-length = 100
+
+[tool.coverage.run]
+branch = true
+cover_pylib = false
+source = ["."]
+
+[tool.coverage.html]
+directory = "coverage_report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.mypy]
+strict = false
