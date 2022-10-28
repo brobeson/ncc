@@ -25,9 +25,11 @@ jobs:
         pip3 install --upgrade pip
         pip3 install --requirement requirements.txt --requirement dev-requirements.txt
     - name: Run PyLint
-      id: pylint
+      continue-on-error: true
       run: pylint ncc.py
     - name: Run Black
+      continue-on-error: true
       run: black --check .
     - name: Run MyPy
+      continue-on-error: true
       run: mypy .
