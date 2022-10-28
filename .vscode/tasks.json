@@ -4,14 +4,29 @@
     {
       "label": "NCC: All Checks",
       "detail": "Run all the code quality checks.",
-      "dependsOn": ["NCC: PyLint"]
+      "dependsOn": [
+        "NCC: Black",
+        "NCC: PyLint"
+      ]
+    },
+    {
+      "label": "NCC: Black",
+      "detail": "Format Python code with Black.",
+      "type": "shell",
+      "command": "black",
+      "args": [
+        "."
+      ],
+      "problemMatcher": []
     },
     {
       "label": "NCC: PyLint",
       "detail": "Run PyLint on the code.",
       "type": "shell",
       "command": "pylint",
-      "args": ["ncc.py"],
+      "args": [
+        "ncc.py"
+      ],
       "problemMatcher": {
         "applyTo": "allDocuments",
         "fileLocation": "relative",
@@ -25,6 +40,27 @@
           "column": 3,
           "code": 6,
           "message": 5
+        }
+      }
+    },
+    {
+      "label": "NCC: MyPy",
+      "detail": "Check Python type hints with MyPy.",
+      "type": "shell",
+      "command": "mypy",
+      "args": ["."],
+      "problemMatcher": {
+        "applyTo": "allDocuments",
+        "fileLocation": "relative",
+        "owner": "ncc: mypy",
+        "source": " ",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^([^:]+):(\\d+):\\s([^:]+):\\s(.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
         }
       }
     }

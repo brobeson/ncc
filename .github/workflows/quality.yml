@@ -1,0 +1,33 @@
+name: NCC Code Quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# From https://stackoverflow.com/a/72408109
+# Create a group from the PR number, or the branch/tag name (if not a PR).
+# Cancel in-progress runs if the PR, branch, or tag is updated.
+concurrency:
+  group: ${{github.event.pull_request.number || github.ref}}
+  cancel-in-progress: true
+
+jobs:
+  Quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install Dependencies
+      run: |
+        pip3 install --upgrade pip
+        pip3 install --requirement requirements.txt --requirement dev-requirements.txt
+    - name: Run PyLint
+      id: pylint
+      run: pylint ncc.py
+    - name: Run Black
+      run: black --check .
+    - name: Run MyPy
+      run: mypy .
