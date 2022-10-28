@@ -45,7 +45,7 @@ file_extensions = [".c", ".cpp", ".h", ".hpp"]
 
 
 class Rule(object):
-    def __init__(self, name, clang_kind, parent_kind=None, pattern_str='^.*$'):
+    def __init__(self, name, clang_kind, parent_kind=None, pattern_str="^.*$"):
         self.name = name
         self.clang_kind = clang_kind
         self.parent_kind = parent_kind
@@ -57,8 +57,14 @@ class Rule(object):
     def evaluate(self, node, scope=None):
         if not self.pattern.match(node.spelling):
             fmt = '{}:{}:{}: "{}" does not match "{}" associated with {}\n'
-            msg = fmt.format(node.location.file.name, node.location.line, node.location.column,
-                             node.displayname, self.pattern_str, self.name)
+            msg = fmt.format(
+                node.location.file.name,
+                node.location.line,
+                node.location.column,
+                node.displayname,
+                self.pattern_str,
+                self.name,
+            )
             sys.stderr.write(msg)
             return False
         return True
@@ -86,10 +92,10 @@ class ScopePrefixRule(object):
                 else:
                     raise ValueError(key)
         except ValueError as e:
-            sys.stderr.write('{} is not a valid rule name\n'.format(e.message))
+            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
             fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
             if fixit:
-                sys.stderr.write('Did you mean rule name: {} ?\n'.format(fixit[0]))
+                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
             sys.exit(1)
 
 
@@ -112,10 +118,10 @@ class DataTypePrefixRule(object):
                 else:
                     raise ValueError(key)
         except ValueError as e:
-            sys.stderr.write('{} is not a valid rule name\n'.format(e.message))
+            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
             fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
             if fixit:
-                sys.stderr.write('Did you mean rule name: {} ?\n'.format(fixit[0]))
+                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
             sys.exit(1)
 
 
@@ -138,38 +144,40 @@ class VariableNameRule(object):
                 else:
                     raise ValueError(key)
         except ValueError as e:
-            sys.stderr.write('{} is not a valid rule name\n'.format(e.message))
+            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
             fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
             if fixit:
-                sys.stderr.write('Did you mean rule name: {} ?\n'.format(fixit[0]))
+                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
             sys.exit(1)
         except re.error as e:
-            sys.stderr.write('{} is not a valid pattern \n'.format(e.message))
+            sys.stderr.write("{} is not a valid pattern \n".format(e.message))
             sys.exit(1)
 
     def get_scope_prefix(self, node, scope=None):
         if node.storage_class == StorageClass.STATIC:
             return self.scope_prefix_rule.static_prefix
-        elif (scope is None) and (node.storage_class == StorageClass.EXTERN or
-                                  node.storage_class == StorageClass.NONE):
+        elif (scope is None) and (
+            node.storage_class == StorageClass.EXTERN or node.storage_class == StorageClass.NONE
+        ):
             return self.scope_prefix_rule.global_prefix
-        elif (scope is CursorKind.CLASS_DECL):
+        elif scope is CursorKind.CLASS_DECL:
             return self.scope_prefix_rule.class_member_prefix
         return ""
 
     def get_datatype_prefix(self, node):
         if node.type.kind is TypeKind.ELABORATED:
-            if node.type.spelling.startswith('std::string'):
+            if node.type.spelling.startswith("std::string"):
                 return self.datatype_prefix_rule.string_prefix
-            elif (node.type.spelling.startswith('std::unique_ptr') or
-                  node.type.spelling.startswith("std::shared_ptr")):
+            elif node.type.spelling.startswith("std::unique_ptr") or node.type.spelling.startswith(
+                "std::shared_ptr"
+            ):
                 return self.datatype_prefix_rule.pointer_prefix
         elif node.type.kind is TypeKind.POINTER:
             return self.datatype_prefix_rule.pointer_prefix
         else:
             if node.type.spelling == "int":
                 return self.datatype_prefix_rule.integer_prefix
-            elif node.type.spelling.startswith('bool'):
+            elif node.type.spelling.startswith("bool"):
                 return self.datatype_prefix_rule.bool_prefix
         return ""
 
@@ -183,8 +191,13 @@ class VariableNameRule(object):
         pattern = re.compile(pattern_str)
         if not pattern.match(node.spelling):
             fmt = '{}:{}:{}: "{}" does not have the pattern {} associated with Variable name\n'
-            msg = fmt.format(node.location.file.name, node.location.line, node.location.column,
-                             node.displayname, pattern_str)
+            msg = fmt.format(
+                node.location.file.name,
+                node.location.line,
+                node.location.column,
+                node.displayname,
+                pattern_str,
+            )
             sys.stderr.write(msg)
             return False
 
@@ -204,21 +217,26 @@ default_rules_db["CppMethod"] = Rule("CppMethod", CursorKind.CXX_METHOD)
 default_rules_db["Namespace"] = Rule("Namespace", CursorKind.NAMESPACE)
 default_rules_db["ConversionFunction"] = Rule("ConversionFunction", CursorKind.CONVERSION_FUNCTION)
 default_rules_db["TemplateTypeParameter"] = Rule(
-    "TemplateTypeParameter", CursorKind.TEMPLATE_TYPE_PARAMETER)
+    "TemplateTypeParameter", CursorKind.TEMPLATE_TYPE_PARAMETER
+)
 default_rules_db["TemplateNonTypeParameter"] = Rule(
-    "TemplateNonTypeParameter", CursorKind.TEMPLATE_NON_TYPE_PARAMETER)
+    "TemplateNonTypeParameter", CursorKind.TEMPLATE_NON_TYPE_PARAMETER
+)
 default_rules_db["TemplateTemplateParameter"] = Rule(
-    "TemplateTemplateParameter", CursorKind.TEMPLATE_TEMPLATE_PARAMETER)
+    "TemplateTemplateParameter", CursorKind.TEMPLATE_TEMPLATE_PARAMETER
+)
 default_rules_db["FunctionTemplate"] = Rule("FunctionTemplate", CursorKind.FUNCTION_TEMPLATE)
 default_rules_db["ClassTemplate"] = Rule("ClassTemplate", CursorKind.CLASS_TEMPLATE)
 default_rules_db["ClassTemplatePartialSpecialization"] = Rule(
-    "ClassTemplatePartialSpecialization", CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION)
+    "ClassTemplatePartialSpecialization", CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION
+)
 default_rules_db["NamespaceAlias"] = Rule("NamespaceAlias", CursorKind.NAMESPACE_ALIAS)
 default_rules_db["UsingDirective"] = Rule("UsingDirective", CursorKind.USING_DIRECTIVE)
 default_rules_db["UsingDeclaration"] = Rule("UsingDeclaration", CursorKind.USING_DECLARATION)
 default_rules_db["TypeAliasName"] = Rule("TypeAliasName", CursorKind.TYPE_ALIAS_DECL)
 default_rules_db["ClassAccessSpecifier"] = Rule(
-    "ClassAccessSpecifier", CursorKind.CXX_ACCESS_SPEC_DECL)
+    "ClassAccessSpecifier", CursorKind.CXX_ACCESS_SPEC_DECL
+)
 default_rules_db["TypeReference"] = Rule("TypeReference", CursorKind.TYPE_REF)
 default_rules_db["CxxBaseSpecifier"] = Rule("CxxBaseSpecifier", CursorKind.CXX_BASE_SPECIFIER)
 default_rules_db["TemplateReference"] = Rule("TemplateReference", CursorKind.TEMPLATE_REF)
@@ -226,7 +244,8 @@ default_rules_db["NamespaceReference"] = Rule("NamespaceReference", CursorKind.N
 default_rules_db["MemberReference"] = Rule("MemberReference", CursorKind.MEMBER_REF)
 default_rules_db["LabelReference"] = Rule("LabelReference", CursorKind.LABEL_REF)
 default_rules_db["OverloadedDeclarationReference"] = Rule(
-    "OverloadedDeclarationReference", CursorKind.OVERLOADED_DECL_REF)
+    "OverloadedDeclarationReference", CursorKind.OVERLOADED_DECL_REF
+)
 default_rules_db["VariableReference"] = Rule("VariableReference", CursorKind.VARIABLE_REF)
 default_rules_db["InvalidFile"] = Rule("InvalidFile", CursorKind.INVALID_FILE)
 default_rules_db["NoDeclarationFound"] = Rule("NoDeclarationFound", CursorKind.NO_DECL_FOUND)
@@ -234,9 +253,11 @@ default_rules_db["NotImplemented"] = Rule("NotImplemented", CursorKind.NOT_IMPLE
 default_rules_db["InvalidCode"] = Rule("InvalidCode", CursorKind.INVALID_CODE)
 default_rules_db["UnexposedExpression"] = Rule("UnexposedExpression", CursorKind.UNEXPOSED_EXPR)
 default_rules_db["DeclarationReferenceExpression"] = Rule(
-    "DeclarationReferenceExpression", CursorKind.DECL_REF_EXPR)
+    "DeclarationReferenceExpression", CursorKind.DECL_REF_EXPR
+)
 default_rules_db["MemberReferenceExpression"] = Rule(
-    "MemberReferenceExpression", CursorKind.MEMBER_REF_EXPR)
+    "MemberReferenceExpression", CursorKind.MEMBER_REF_EXPR
+)
 default_rules_db["CallExpression"] = Rule("CallExpression", CursorKind.CALL_EXPR)
 default_rules_db["BlockExpression"] = Rule("BlockExpression", CursorKind.BLOCK_EXPR)
 default_rules_db["IntegerLiteral"] = Rule("IntegerLiteral", CursorKind.INTEGER_LITERAL)
@@ -247,49 +268,63 @@ default_rules_db["CharacterLiteral"] = Rule("CharacterLiteral", CursorKind.CHARA
 default_rules_db["ParenExpression"] = Rule("ParenExpression", CursorKind.PAREN_EXPR)
 default_rules_db["UnaryOperator"] = Rule("UnaryOperator", CursorKind.UNARY_OPERATOR)
 default_rules_db["ArraySubscriptExpression"] = Rule(
-    "ArraySubscriptExpression", CursorKind.ARRAY_SUBSCRIPT_EXPR)
+    "ArraySubscriptExpression", CursorKind.ARRAY_SUBSCRIPT_EXPR
+)
 default_rules_db["BinaryOperator"] = Rule("BinaryOperator", CursorKind.BINARY_OPERATOR)
 default_rules_db["CompoundAssignmentOperator"] = Rule(
-    "CompoundAssignmentOperator", CursorKind.COMPOUND_ASSIGNMENT_OPERATOR)
+    "CompoundAssignmentOperator", CursorKind.COMPOUND_ASSIGNMENT_OPERATOR
+)
 default_rules_db["ConditionalOperator"] = Rule(
-    "ConditionalOperator", CursorKind.CONDITIONAL_OPERATOR)
-default_rules_db["CstyleCastExpression"] = Rule(
-    "CstyleCastExpression", CursorKind.CSTYLE_CAST_EXPR)
+    "ConditionalOperator", CursorKind.CONDITIONAL_OPERATOR
+)
+default_rules_db["CstyleCastExpression"] = Rule("CstyleCastExpression", CursorKind.CSTYLE_CAST_EXPR)
 default_rules_db["CompoundLiteralExpression"] = Rule(
-    "CompoundLiteralExpression", CursorKind.COMPOUND_LITERAL_EXPR)
+    "CompoundLiteralExpression", CursorKind.COMPOUND_LITERAL_EXPR
+)
 default_rules_db["InitListExpression"] = Rule("InitListExpression", CursorKind.INIT_LIST_EXPR)
 default_rules_db["AddrLabelExpression"] = Rule("AddrLabelExpression", CursorKind.ADDR_LABEL_EXPR)
 default_rules_db["StatementExpression"] = Rule("StatementExpression", CursorKind.StmtExpr)
 default_rules_db["GenericSelectionExpression"] = Rule(
-    "GenericSelectionExpression", CursorKind.GENERIC_SELECTION_EXPR)
+    "GenericSelectionExpression", CursorKind.GENERIC_SELECTION_EXPR
+)
 default_rules_db["GnuNullExpression"] = Rule("GnuNullExpression", CursorKind.GNU_NULL_EXPR)
 default_rules_db["CxxStaticCastExpression"] = Rule(
-    "CxxStaticCastExpression", CursorKind.CXX_STATIC_CAST_EXPR)
+    "CxxStaticCastExpression", CursorKind.CXX_STATIC_CAST_EXPR
+)
 default_rules_db["CxxDynamicCastExpression"] = Rule(
-    "CxxDynamicCastExpression", CursorKind.CXX_DYNAMIC_CAST_EXPR)
+    "CxxDynamicCastExpression", CursorKind.CXX_DYNAMIC_CAST_EXPR
+)
 default_rules_db["CxxReinterpretCastExpression"] = Rule(
-    "CxxReinterpretCastExpression", CursorKind.CXX_REINTERPRET_CAST_EXPR)
+    "CxxReinterpretCastExpression", CursorKind.CXX_REINTERPRET_CAST_EXPR
+)
 default_rules_db["CxxConstCastExpression"] = Rule(
-    "CxxConstCastExpression", CursorKind.CXX_CONST_CAST_EXPR)
+    "CxxConstCastExpression", CursorKind.CXX_CONST_CAST_EXPR
+)
 default_rules_db["CxxFunctionalCastExpression"] = Rule(
-    "CxxFunctionalCastExpression", CursorKind.CXX_FUNCTIONAL_CAST_EXPR)
+    "CxxFunctionalCastExpression", CursorKind.CXX_FUNCTIONAL_CAST_EXPR
+)
 default_rules_db["CxxTypeidExpression"] = Rule("CxxTypeidExpression", CursorKind.CXX_TYPEID_EXPR)
 default_rules_db["CxxBoolLiteralExpression"] = Rule(
-    "CxxBoolLiteralExpression", CursorKind.CXX_BOOL_LITERAL_EXPR)
+    "CxxBoolLiteralExpression", CursorKind.CXX_BOOL_LITERAL_EXPR
+)
 default_rules_db["CxxNullPointerLiteralExpression"] = Rule(
-    "CxxNullPointerLiteralExpression", CursorKind.CXX_NULL_PTR_LITERAL_EXPR)
+    "CxxNullPointerLiteralExpression", CursorKind.CXX_NULL_PTR_LITERAL_EXPR
+)
 default_rules_db["CxxThisExpression"] = Rule("CxxThisExpression", CursorKind.CXX_THIS_EXPR)
 default_rules_db["CxxThrowExpression"] = Rule("CxxThrowExpression", CursorKind.CXX_THROW_EXPR)
 default_rules_db["CxxNewExpression"] = Rule("CxxNewExpression", CursorKind.CXX_NEW_EXPR)
 default_rules_db["CxxDeleteExpression"] = Rule("CxxDeleteExpression", CursorKind.CXX_DELETE_EXPR)
 default_rules_db["CxxUnaryExpression"] = Rule("CxxUnaryExpression", CursorKind.CXX_UNARY_EXPR)
 default_rules_db["PackExpansionExpression"] = Rule(
-    "PackExpansionExpression", CursorKind.PACK_EXPANSION_EXPR)
+    "PackExpansionExpression", CursorKind.PACK_EXPANSION_EXPR
+)
 default_rules_db["SizeOfPackExpression"] = Rule(
-    "SizeOfPackExpression", CursorKind.SIZE_OF_PACK_EXPR)
+    "SizeOfPackExpression", CursorKind.SIZE_OF_PACK_EXPR
+)
 default_rules_db["LambdaExpression"] = Rule("LambdaExpression", CursorKind.LAMBDA_EXPR)
 default_rules_db["ObjectBoolLiteralExpression"] = Rule(
-    "ObjectBoolLiteralExpression", CursorKind.OBJ_BOOL_LITERAL_EXPR)
+    "ObjectBoolLiteralExpression", CursorKind.OBJ_BOOL_LITERAL_EXPR
+)
 default_rules_db["ObjectSelfExpression"] = Rule("ObjectSelfExpression", CursorKind.OBJ_SELF_EXPR)
 default_rules_db["UnexposedStatement"] = Rule("UnexposedStatement", CursorKind.UNEXPOSED_STMT)
 default_rules_db["LabelStatement"] = Rule("LabelStatement", CursorKind.LABEL_STMT)
@@ -303,7 +338,8 @@ default_rules_db["DoStatement"] = Rule("DoStatement", CursorKind.DO_STMT)
 default_rules_db["ForStatement"] = Rule("ForStatement", CursorKind.FOR_STMT)
 default_rules_db["GotoStatement"] = Rule("GotoStatement", CursorKind.GOTO_STMT)
 default_rules_db["IndirectGotoStatement"] = Rule(
-    "IndirectGotoStatement", CursorKind.INDIRECT_GOTO_STMT)
+    "IndirectGotoStatement", CursorKind.INDIRECT_GOTO_STMT
+)
 default_rules_db["ContinueStatement"] = Rule("ContinueStatement", CursorKind.CONTINUE_STMT)
 default_rules_db["BreakStatement"] = Rule("BreakStatement", CursorKind.BREAK_STMT)
 default_rules_db["ReturnStatement"] = Rule("ReturnStatement", CursorKind.RETURN_STMT)
@@ -311,7 +347,8 @@ default_rules_db["AsmStatement"] = Rule("AsmStatement", CursorKind.ASM_STMT)
 default_rules_db["CxxCatchStatement"] = Rule("CxxCatchStatement", CursorKind.CXX_CATCH_STMT)
 default_rules_db["CxxTryStatement"] = Rule("CxxTryStatement", CursorKind.CXX_TRY_STMT)
 default_rules_db["CxxForRangeStatement"] = Rule(
-    "CxxForRangeStatement", CursorKind.CXX_FOR_RANGE_STMT)
+    "CxxForRangeStatement", CursorKind.CXX_FOR_RANGE_STMT
+)
 default_rules_db["MsAsmStatement"] = Rule("MsAsmStatement", CursorKind.MS_ASM_STMT)
 default_rules_db["NullStatement"] = Rule("NullStatement", CursorKind.NULL_STMT)
 default_rules_db["DeclarationStatement"] = Rule("DeclarationStatement", CursorKind.DECL_STMT)
@@ -319,21 +356,23 @@ default_rules_db["TranslationUnit"] = Rule("TranslationUnit", CursorKind.TRANSLA
 default_rules_db["UnexposedAttribute"] = Rule("UnexposedAttribute", CursorKind.UNEXPOSED_ATTR)
 default_rules_db["CxxFinalAttribute"] = Rule("CxxFinalAttribute", CursorKind.CXX_FINAL_ATTR)
 default_rules_db["CxxOverrideAttribute"] = Rule(
-    "CxxOverrideAttribute", CursorKind.CXX_OVERRIDE_ATTR)
+    "CxxOverrideAttribute", CursorKind.CXX_OVERRIDE_ATTR
+)
 default_rules_db["AnnotateAttribute"] = Rule("AnnotateAttribute", CursorKind.ANNOTATE_ATTR)
 default_rules_db["AsmLabelAttribute"] = Rule("AsmLabelAttribute", CursorKind.ASM_LABEL_ATTR)
 default_rules_db["PackedAttribute"] = Rule("PackedAttribute", CursorKind.PACKED_ATTR)
 default_rules_db["PureAttribute"] = Rule("PureAttribute", CursorKind.PURE_ATTR)
 default_rules_db["ConstAttribute"] = Rule("ConstAttribute", CursorKind.CONST_ATTR)
-default_rules_db["NoduplicateAttribute"] = Rule(
-    "NoduplicateAttribute", CursorKind.NODUPLICATE_ATTR)
+default_rules_db["NoduplicateAttribute"] = Rule("NoduplicateAttribute", CursorKind.NODUPLICATE_ATTR)
 default_rules_db["PreprocessingDirective"] = Rule(
-    "PreprocessingDirective", CursorKind.PREPROCESSING_DIRECTIVE)
+    "PreprocessingDirective", CursorKind.PREPROCESSING_DIRECTIVE
+)
 default_rules_db["MacroDefinition"] = Rule("MacroDefinition", CursorKind.MACRO_DEFINITION)
 default_rules_db["MacroInstantiation"] = Rule("MacroInstantiation", CursorKind.MACRO_INSTANTIATION)
 default_rules_db["InclusionDirective"] = Rule("InclusionDirective", CursorKind.INCLUSION_DIRECTIVE)
 default_rules_db["TypeAliasTeplateDeclaration"] = Rule(
-    "TypeAliasTeplateDeclaration", CursorKind.TYPE_ALIAS_TEMPLATE_DECL)
+    "TypeAliasTeplateDeclaration", CursorKind.TYPE_ALIAS_TEMPLATE_DECL
+)
 
 # Reverse lookup map. The parse identifies Clang cursor kinds, which must be mapped
 # to user defined types
@@ -372,44 +411,72 @@ class Options:
             "write C/C++ code that adheres to adhere some naming conventions. It automates the "
             "process of checking C code to spare humans of this boring "
             "(but important) task. This makes it ideal for projects that want "
-            "to enforce a coding standard.")
+            "to enforce a coding standard.",
+        )
 
-        self.parser.add_argument('--recurse', action='store_true', dest="recurse",
-                                 help="Read all files under each directory, recursively")
+        self.parser.add_argument(
+            "--recurse",
+            action="store_true",
+            dest="recurse",
+            help="Read all files under each directory, recursively",
+        )
 
-        self.parser.add_argument('--style', dest="style_file",
-                                 help="Read rules from the specified file. If the user does not"
-                                 "provide a style file ncc will use all style rules. To print"
-                                 "all style rules use --dump option")
+        self.parser.add_argument(
+            "--style",
+            dest="style_file",
+            help="Read rules from the specified file. If the user does not"
+            "provide a style file ncc will use all style rules. To print"
+            "all style rules use --dump option",
+        )
 
-        self.parser.add_argument('--include', dest='include', nargs="+", help="User defined "
-                                 "header file path, this is same as -I argument to the compiler")
+        self.parser.add_argument(
+            "--include",
+            dest="include",
+            nargs="+",
+            help="User defined " "header file path, this is same as -I argument to the compiler",
+        )
 
-        self.parser.add_argument('--definition', dest='definition', nargs="+", help="User specified "
-                                 "definitions, this is same as -D argument to the compiler")
+        self.parser.add_argument(
+            "--definition",
+            dest="definition",
+            nargs="+",
+            help="User specified " "definitions, this is same as -D argument to the compiler",
+        )
 
-        self.parser.add_argument('--dump', dest='dump', action='store_true',
-                                 help="Dump all available options")
+        self.parser.add_argument(
+            "--dump", dest="dump", action="store_true", help="Dump all available options"
+        )
 
-        self.parser.add_argument('--output', dest='output', help="output file name where"
-                                 "naming convenction vialoations will be stored")
+        self.parser.add_argument(
+            "--output",
+            dest="output",
+            help="output file name where" "naming convenction vialoations will be stored",
+        )
 
-        self.parser.add_argument('--filetype', dest='filetype', help="File extentions type"
-                                 "that are applicable for naming convection validation")
+        self.parser.add_argument(
+            "--filetype",
+            dest="filetype",
+            help="File extentions type" "that are applicable for naming convection validation",
+        )
 
-        self.parser.add_argument('--clang-lib', dest='clang_lib',
-                                 help="Custom location of clang library")
+        self.parser.add_argument(
+            "--clang-lib", dest="clang_lib", help="Custom location of clang library"
+        )
 
-        self.parser.add_argument('--exclude', dest='exclude', nargs="+", help="Skip files "
-                                 "matching the pattern specified from recursive searches. It "
-                                 "matches a specified pattern according to the rules used by "
-                                 "the Unix shell")
+        self.parser.add_argument(
+            "--exclude",
+            dest="exclude",
+            nargs="+",
+            help="Skip files "
+            "matching the pattern specified from recursive searches. It "
+            "matches a specified pattern according to the rules used by "
+            "the Unix shell",
+        )
 
         # self.parser.add_argument('--exclude-dir', dest='exclude_dir', help="Skip the directories"
         #                          "matching the pattern specified")
 
-        self.parser.add_argument('--path', dest='path', nargs="+",
-                                 help="Path of file or directory")
+        self.parser.add_argument("--path", dest="path", nargs="+", help="Path of file or directory")
 
     def parse_cmd_line(self):
         self.args = self.parser.parse_args()
@@ -461,15 +528,17 @@ class RulesDb(object):
                         self.__clang_db[clang_kind] = rule_name
 
             except KeyError as e:
-                sys.stderr.write('{} is not a valid C/C++ construct name\n'.format(e.message))
-                fixit = difflib.get_close_matches(e.message, default_rules_db.keys(),
-                                                  n=1, cutoff=0.8)
+                sys.stderr.write("{} is not a valid C/C++ construct name\n".format(e.message))
+                fixit = difflib.get_close_matches(
+                    e.message, default_rules_db.keys(), n=1, cutoff=0.8
+                )
                 if fixit:
-                    sys.stderr.write('Did you mean rule name: {} ?\n'.format(fixit[0]))
+                    sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
                 sys.exit(1)
             except re.error as e:
-                sys.stderr.write('"{}" pattern {} has {} \n'.
-                                 format(rule_name, pattern_str, e.message))
+                sys.stderr.write(
+                    '"{}" pattern {} has {} \n'.format(rule_name, pattern_str, e.message)
+                )
                 sys.exit(1)
 
     def is_rule_enabled(self, kind):
@@ -497,16 +566,16 @@ class Validator(object):
 
         index = Index.create()
         args = []
-        args.append('-x')
-        args.append('c++')
-        args.append('-D_GLIBCXX_USE_CXX11_ABI=0')
+        args.append("-x")
+        args.append("c++")
+        args.append("-D_GLIBCXX_USE_CXX11_ABI=0")
         if self.options.args.definition:
             for item in self.options.args.definition:
-                defintion = r'-D' + item
+                defintion = r"-D" + item
                 args.append(defintion)
         if self.options.args.include:
             for item in self.options.args.include:
-                inc = r'-I' + item
+                inc = r"-I" + item
                 args.append(inc)
         self.cursor = index.parse(filename, args).cursor
 
@@ -525,8 +594,11 @@ class Validator(object):
                 # This is the case when typedef of struct is causing double reporting of error
                 # TODO: Find a better way to handle it
                 parent = self.node_stack.peek()
-                if (parent and parent == CursorKind.TYPEDEF_DECL and
-                        child.kind == CursorKind.STRUCT_DECL):
+                if (
+                    parent
+                    and parent == CursorKind.TYPEDEF_DECL
+                    and child.kind == CursorKind.STRUCT_DECL
+                ):
                     return 0
 
                 errors += self.evaluate(child)
@@ -555,7 +627,7 @@ class Validator(object):
         return 0
 
     def is_local(self, node, filename):
-        """ Returns True is node belongs to the file being validated and not an include file """
+        """Returns True is node belongs to the file being validated and not an include file"""
         if node.location.file and node.location.file.name in filename:
             return True
         return False
@@ -580,8 +652,12 @@ def do_validate(options, filename):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
-                        filename='log.txt', filemode='w')
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s %(levelname)s %(message)s",
+        filename="log.txt",
+        filemode="w",
+    )
 
     """ Parse all command line arguments and validate """
     op = Options()
@@ -606,7 +682,7 @@ if __name__ == "__main__":
         elif os.path.isdir(path):
             for (root, subdirs, files) in os.walk(path):
                 for filename in files:
-                    path = root + '/' + filename
+                    path = root + "/" + filename
                     if do_validate(op, path):
                         v = Validator(rules_db, path, op)
                         errors += v.validate()
