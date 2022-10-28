@@ -25,11 +25,12 @@ jobs:
         pip3 install --upgrade pip
         pip3 install --requirement requirements.txt --requirement dev-requirements.txt
     - name: Run PyLint
-      continue-on-error: true
+      id: pylint
       run: pylint ncc.py
     - name: Run Black
-      continue-on-error: true
+      id: black
+      if: steps.pylint.outcome != 'cancelled'
       run: black --check .
     - name: Run MyPy
-      continue-on-error: true
+      if: steps.black.outcome != 'cancelled'
       run: mypy .
