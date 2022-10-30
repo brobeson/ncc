@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""Check C++ files for identifier name conventions."""
+
 # MIT License
 #
 # Copyright (c) 2018 Nithin Nellikunnu (nithin.nn@gmail.com)
@@ -22,19 +24,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import logging
 import argparse
-import yaml
+import dataclasses
+import difflib
+import fnmatch
+import logging
+import os
 import re
 import sys
-import difflib
-import os
-import fnmatch
-from clang.cindex import Index
-from clang.cindex import CursorKind
-from clang.cindex import StorageClass
-from clang.cindex import TypeKind
-from clang.cindex import Config
+import yaml
+from clang.cindex import Config, CursorKind, Index, StorageClass, TypeKind
 
 
 # Clang cursor kind to ncc Defined cursor map
@@ -44,7 +43,8 @@ special_kind = {CursorKind.STRUCT_DECL: 1, CursorKind.CLASS_DECL: 1}
 file_extensions = [".c", ".cpp", ".h", ".hpp"]
 
 
-class Rule(object):
+@dataclasses.dataclass
+class Rule:
     def __init__(self, name, clang_kind, parent_kind=None, pattern_str="^.*$"):
         self.name = name
         self.clang_kind = clang_kind
@@ -54,7 +54,7 @@ class Rule(object):
         self.includes = []
         self.excludes = []
 
-    def evaluate(self, node, scope=None):
+    def evaluate(self, node):
         if not self.pattern.match(node.spelling):
             fmt = '{}:{}:{}: "{}" does not match "{}" associated with {}\n'
             msg = fmt.format(
@@ -70,7 +70,8 @@ class Rule(object):
         return True
 
 
-class ScopePrefixRule(object):
+@dataclasses.dataclass
+class ScopePrefixRule:
     def __init__(self, pattern_obj):
         self.name = "ScopePrefixRule"
         self.rule_names = ["Global", "Static", "ClassMember", "StructMember"]
@@ -91,15 +92,16 @@ class ScopePrefixRule(object):
                     self.struct_member_prefix = value
                 else:
                     raise ValueError(key)
-        except ValueError as e:
-            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
-            fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
-            if fixit:
-                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
+        except ValueError as exception:
+            sys.stderr.write(f"{exception} is not a valid rule name\n")
+            fix_it = difflib.get_close_matches(str(exception), self.rule_names, n=1, cutoff=0.8)
+            if fix_it:
+                sys.stderr.write(f"Did you mean rule name: {fix_it[0]}?\n")
             sys.exit(1)
 
 
-class DataTypePrefixRule(object):
+@dataclasses.dataclass
+class DataTypePrefixRule:
     def __init__(self, pattern_obj):
         self.name = "DataTypePrefix"
         self.rule_names = ["String", "Integer", "Bool", "Pointer"]
@@ -117,15 +119,15 @@ class DataTypePrefixRule(object):
                     self.pointer_prefix = value
                 else:
                     raise ValueError(key)
-        except ValueError as e:
-            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
-            fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
-            if fixit:
-                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
+        except ValueError as exception:
+            sys.stderr.write(f"{exception} is not a valid rule name\n")
+            fix_it = difflib.get_close_matches(str(exception), self.rule_names, n=1, cutoff=0.8)
+            if fix_it:
+                sys.stderr.write(f"Did you mean rule name: {fix_it[0]}?\n")
             sys.exit(1)
 
 
-class VariableNameRule(object):
+class VariableNameRule:
     def __init__(self, pattern_obj=None):
         self.name = "VariableName"
         self.pattern_str = "^.*$"
@@ -143,24 +145,22 @@ class VariableNameRule(object):
                     self.pattern_str = value
                 else:
                     raise ValueError(key)
-        except ValueError as e:
-            sys.stderr.write("{} is not a valid rule name\n".format(e.message))
-            fixit = difflib.get_close_matches(e.message, self.rule_names, n=1, cutoff=0.8)
-            if fixit:
-                sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
+        except ValueError as exception:
+            sys.stderr.write(f"{exception} is not a valid rule name\n")
+            fix_it = difflib.get_close_matches(str(exception), self.rule_names, n=1, cutoff=0.8)
+            if fix_it:
+                sys.stderr.write(f"Did you mean rule name: {fix_it[0]}?\n")
             sys.exit(1)
-        except re.error as e:
-            sys.stderr.write("{} is not a valid pattern \n".format(e.message))
+        except re.error as exception:
+            sys.stderr.write(f"{exception} is not a valid pattern \n")
             sys.exit(1)
 
     def get_scope_prefix(self, node, scope=None):
         if node.storage_class == StorageClass.STATIC:
             return self.scope_prefix_rule.static_prefix
-        elif (scope is None) and (
-            node.storage_class == StorageClass.EXTERN or node.storage_class == StorageClass.NONE
-        ):
+        if scope is None and node.storage_class in (StorageClass.EXTERN, StorageClass.NONE):
             return self.scope_prefix_rule.global_prefix
-        elif scope is CursorKind.CLASS_DECL:
+        if scope is CursorKind.CLASS_DECL:
             return self.scope_prefix_rule.class_member_prefix
         return ""
 
@@ -168,7 +168,7 @@ class VariableNameRule(object):
         if node.type.kind is TypeKind.ELABORATED:
             if node.type.spelling.startswith("std::string"):
                 return self.datatype_prefix_rule.string_prefix
-            elif node.type.spelling.startswith("std::unique_ptr") or node.type.spelling.startswith(
+            if node.type.spelling.startswith("std::unique_ptr") or node.type.spelling.startswith(
                 "std::shared_ptr"
             ):
                 return self.datatype_prefix_rule.pointer_prefix
@@ -177,7 +177,7 @@ class VariableNameRule(object):
         else:
             if node.type.spelling == "int":
                 return self.datatype_prefix_rule.integer_prefix
-            elif node.type.spelling.startswith("bool"):
+            if node.type.spelling.startswith("bool"):
                 return self.datatype_prefix_rule.bool_prefix
         return ""
 
@@ -370,20 +370,20 @@ default_rules_db["PreprocessingDirective"] = Rule(
 default_rules_db["MacroDefinition"] = Rule("MacroDefinition", CursorKind.MACRO_DEFINITION)
 default_rules_db["MacroInstantiation"] = Rule("MacroInstantiation", CursorKind.MACRO_INSTANTIATION)
 default_rules_db["InclusionDirective"] = Rule("InclusionDirective", CursorKind.INCLUSION_DIRECTIVE)
-default_rules_db["TypeAliasTeplateDeclaration"] = Rule(
-    "TypeAliasTeplateDeclaration", CursorKind.TYPE_ALIAS_TEMPLATE_DECL
+default_rules_db["TypeAliasTemplateDeclaration"] = Rule(
+    "TypeAliasTemplateDeclaration", CursorKind.TYPE_ALIAS_TEMPLATE_DECL
 )
 
 # Reverse lookup map. The parse identifies Clang cursor kinds, which must be mapped
 # to user defined types
-for key, value in default_rules_db.items():
-    clang_to_user_map[value.clang_kind] = key
+for _key, _value in default_rules_db.items():
+    clang_to_user_map[_value.clang_kind] = _key
 default_rules_db["VariableName"] = Rule("VariableName", CursorKind.VAR_DECL)
 clang_to_user_map[CursorKind.FIELD_DECL] = "VariableName"
 clang_to_user_map[CursorKind.VAR_DECL] = "VariableName"
 
 
-class AstNodeStack(object):
+class AstNodeStack:
     def __init__(self):
         self.stack = []
 
@@ -402,7 +402,7 @@ class AstNodeStack(object):
 class Options:
     def __init__(self):
         self.args = None
-        self._style_file = None
+        self.style_file = None
         self.file_exclusions = None
 
         self.parser = argparse.ArgumentParser(
@@ -450,13 +450,13 @@ class Options:
         self.parser.add_argument(
             "--output",
             dest="output",
-            help="output file name where" "naming convenction vialoations will be stored",
+            help="output file name where" "naming convention violations will be stored",
         )
 
         self.parser.add_argument(
             "--filetype",
             dest="filetype",
-            help="File extentions type" "that are applicable for naming convection validation",
+            help="File extensions type" "that are applicable for naming convection validation",
         )
 
         self.parser.add_argument(
@@ -485,20 +485,20 @@ class Options:
             self.dump_all_rules()
 
         if self.args.style_file:
-            self._style_file = self.args.style_file
-            if not os.path.exists(self._style_file):
-                sys.stderr.write("Style file '{}' not found!\n".format(self._style_file))
+            self.style_file = self.args.style_file
+            if not os.path.exists(self.style_file):
+                sys.stderr.write(f"Style file '{self.style_file}' not found!\n")
                 sys.exit(1)
 
     def dump_all_rules(self):
         print("----------------------------------------------------------")
-        print("{:<35} | {}".format("Rule Name", "Pattern"))
+        print("Rule Name                           | Pattern")
         print("----------------------------------------------------------")
         for (key, value) in default_rules_db.items():
-            print("{:<35} : {}".format(key, value.pattern_str))
+            print(f"{key:<35} : {value.pattern_str}")
 
 
-class RulesDb(object):
+class RulesDb:
     def __init__(self, style_file=None):
         self.__rule_db = {}
         self.__clang_db = {}
@@ -510,8 +510,8 @@ class RulesDb(object):
             self.__clang_db = clang_to_user_map
 
     def build_rules_db(self, style_file):
-        with open(style_file) as stylefile:
-            style_rules = yaml.safe_load(stylefile)
+        with open(style_file, mode="r", encoding="utf-8") as style_stream:
+            style_rules = yaml.safe_load(style_stream)
 
         for (rule_name, pattern_str) in style_rules.items():
             try:
@@ -527,18 +527,16 @@ class RulesDb(object):
                         self.__rule_db[rule_name].pattern = re.compile(pattern_str)
                         self.__clang_db[clang_kind] = rule_name
 
-            except KeyError as e:
-                sys.stderr.write("{} is not a valid C/C++ construct name\n".format(e.message))
-                fixit = difflib.get_close_matches(
-                    e.message, default_rules_db.keys(), n=1, cutoff=0.8
+            except KeyError as exception:
+                sys.stderr.write(f"{exception} is not a valid C/C++ construct name\n")
+                fix_it = difflib.get_close_matches(
+                    str(exception), default_rules_db.keys(), n=1, cutoff=0.8
                 )
-                if fixit:
-                    sys.stderr.write("Did you mean rule name: {} ?\n".format(fixit[0]))
+                if fix_it:
+                    sys.stderr.write(f"Did you mean rule name: {fix_it[0]}?\n")
                 sys.exit(1)
-            except re.error as e:
-                sys.stderr.write(
-                    '"{}" pattern {} has {} \n'.format(rule_name, pattern_str, e.message)
-                )
+            except re.error as exception:
+                sys.stderr.write(f'"{rule_name}" pattern {pattern_str} has {exception}\n')
                 sys.exit(1)
 
     def is_rule_enabled(self, kind):
@@ -557,7 +555,7 @@ class RulesDb(object):
         return self.__rule_db.get(rule_name)
 
 
-class Validator(object):
+class Validator:
     def __init__(self, rule_db, filename, options):
         self.filename = filename
         self.rule_db = rule_db
@@ -571,8 +569,8 @@ class Validator(object):
         args.append("-D_GLIBCXX_USE_CXX11_ABI=0")
         if self.options.args.definition:
             for item in self.options.args.definition:
-                defintion = r"-D" + item
-                args.append(defintion)
+                definition = r"-D" + item
+                args.append(definition)
         if self.options.args.include:
             for item in self.options.args.include:
                 inc = r"-I" + item
@@ -639,7 +637,7 @@ def do_validate(options, filename):
     - Check if its a c/c++ file
     - Check if the file is not excluded
     """
-    path, extension = os.path.splitext(filename)
+    extension = os.path.splitext(filename)[1]
     if extension not in file_extensions:
         return False
 
@@ -651,7 +649,7 @@ def do_validate(options, filename):
     return True
 
 
-if __name__ == "__main__":
+def _main():
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -659,40 +657,44 @@ if __name__ == "__main__":
         filemode="w",
     )
 
-    """ Parse all command line arguments and validate """
-    op = Options()
-    op.parse_cmd_line()
+    # Parse all command line arguments and validate
+    options = Options()
+    options.parse_cmd_line()
 
-    if op.args.path is None:
+    if options.args.path is None:
         sys.exit(1)
 
-    if op.args.clang_lib:
-        Config.set_library_file(op.args.clang_lib)
+    if options.args.clang_lib:
+        Config.set_library_file(options.args.clang_lib)
 
-    """ Creating the rules database """
-    rules_db = RulesDb(op._style_file)
+    # Creating the rules database
+    rules_db = RulesDb(options.style_file)
 
-    """ Check the source code against the configured rules """
+    # Check the source code against the configured rules
     errors = 0
-    for path in op.args.path:
+    for path in options.args.path:
         if os.path.isfile(path):
-            if do_validate(op, path):
-                v = Validator(rules_db, path, op)
-                errors += v.validate()
+            if do_validate(options, path):
+                validator = Validator(rules_db, path, options)
+                errors += validator.validate()
         elif os.path.isdir(path):
-            for (root, subdirs, files) in os.walk(path):
+            for (root, _, files) in os.walk(path):
                 for filename in files:
                     path = root + "/" + filename
-                    if do_validate(op, path):
-                        v = Validator(rules_db, path, op)
-                        errors += v.validate()
+                    if do_validate(options, path):
+                        validator = Validator(rules_db, path, options)
+                        errors += validator.validate()
 
-                if not op.args.recurse:
+                if not options.args.recurse:
                     break
         else:
-            sys.stderr.write("File '{}' not found!\n".format(path))
+            sys.stderr.write(f"File '{path}' not found!\n")
             sys.exit(1)
 
     if errors:
-        print("Total number of errors = {}".format(errors))
+        print("Total number of errors =", errors)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    _main()

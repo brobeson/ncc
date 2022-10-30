@@ -1,4 +1,15 @@
 {
-  "editor.formatOnSave": false,
-  "python.linting.enabled": true
+  "editor.formatOnSave": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintCategorySeverity.refactor": "Information",
+  "cSpell.words": [
+    "cindex",
+    "Cstyle",
+    "displayname",
+    "GLIBCXX",
+    "levelname",
+    "Nellikunnu",
+    "Nithin",
+    "Noduplicate"
+  ]
 }
